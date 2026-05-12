@@ -12,6 +12,10 @@ import ReportPage from './pages/ReportPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import AdminManagement from './pages/AdminManagement';
 import AIInsightsPage from './pages/AIInsightsPage';
+import CheckInPage from './pages/CheckInPage';
+import UserDashboard from './pages/UserDashboard';
+import EventQRPage from './pages/EventQRPage';
+import GuestCheckInPage from './pages/GuestCheckInPage';
 import './styles/app.css';
 
 function ProtectedLayout() {
@@ -43,10 +47,15 @@ export default function App() {
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/admins" element={<AdminManagement />} />
               <Route path="/ai-insights" element={<AIInsightsPage />} />
+              <Route path="/checkin" element={<CheckInPage />} />
+              <Route path="/browse" element={<UserDashboard />} />
+              <Route path="/events/:id/qr" element={<EventQRPage />} />
             </Route>
           </Route>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          {/* Public guest check-in — no auth required */}
+          <Route path="/checkin/event/:eventId" element={<GuestCheckInPage />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

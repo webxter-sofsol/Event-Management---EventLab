@@ -7,9 +7,11 @@ import type React from 'react';
 
 const NAV_LINKS = [
   { to: '/dashboard', label: 'Dashboard' },
+  { to: '/browse', label: 'Browse Events' },
   { to: '/events', label: 'Events' },
   { to: '/analytics', label: 'Analytics' },
   { to: '/ai-insights', label: 'AI Insights', icon: true },
+  { to: '/checkin', label: '🎟 Check-In' },
   { to: '/admins', label: 'Admins' },
 ];
 
