@@ -19,7 +19,7 @@ class TicketSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Ticket
-        fields = ["id", "event", "guest", "registered_at", "registered_by", "status"]
+        fields = ["id", "event", "guest", "registered_at", "registered_by", "status", "ticket_type", "checked_in", "checked_in_at"]
 
 
 class AuditLogSerializer(serializers.ModelSerializer):

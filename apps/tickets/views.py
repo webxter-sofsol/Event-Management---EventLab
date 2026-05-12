@@ -47,6 +47,7 @@ class RegistrationListCreateView(APIView):
 
                 email = request.data.get("email")
                 name = request.data.get("name", "")
+                ticket_type = request.data.get("ticket_type", "normal")
                 guest, _ = Guest.objects.get_or_create(
                     email=email,
                     defaults={"name": name},
@@ -57,6 +58,7 @@ class RegistrationListCreateView(APIView):
                     guest=guest,
                     registered_by=request.user,
                     status="confirmed",
+                    ticket_type=ticket_type,
                 )
                 ticket.save()
 
@@ -98,6 +100,8 @@ class BulkRegistrationView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        ticket_type = request.data.get("ticket_type", "normal")
+
         succeeded = []
         failed = []
 
@@ -124,6 +128,7 @@ class BulkRegistrationView(APIView):
                             guest=guest,
                             registered_by=request.user,
                             status="confirmed",
+                            ticket_type=ticket_type,
                         )
                         ticket.save()
                 except IntegrityError:
