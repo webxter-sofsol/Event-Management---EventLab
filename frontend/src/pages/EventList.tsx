@@ -160,6 +160,7 @@ export default function EventList() {
                         <Link to={`/events/${event.id}/registrations`} className="btn btn-sm btn-secondary">Guests</Link>
                         <Link to={`/events/${event.id}/report`} className="btn btn-sm btn-ghost">Report</Link>
                         <Link to={`/events/${event.id}/alerts`} className="btn btn-sm btn-ghost">Alerts</Link>
+                        <Link to={`/events/${event.id}/qr`} className="btn btn-sm btn-ghost">🔲 QR</Link>
                       </div>
                     </td>
                   </tr>
