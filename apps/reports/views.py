@@ -45,8 +45,8 @@ class EventReportView(APIView):
                 "event_name": event.name,
                 "total_registrations": total_registrations,
                 "available_seats": available_seats,
-                "revenue": str(revenue),
-                "guest_list": guest_list,
+                "revenue": float(revenue),
+                "guests": guest_list,
             }
         )
 
@@ -73,7 +73,7 @@ class EventReportExportView(APIView):
             yield ["Event Name", event.name]
             yield ["Total Registrations", total_registrations]
             yield ["Available Seats", event.available_seats]
-            yield ["Revenue", str(revenue)]
+            yield ["Revenue", float(revenue)]
             yield []  # blank separator
             # Guest list header
             yield ["Guest Name", "Guest Email", "Registered At"]
