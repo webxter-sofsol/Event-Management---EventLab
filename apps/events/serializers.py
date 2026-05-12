@@ -27,6 +27,7 @@ class EventSerializer(serializers.ModelSerializer):
             "status",
             "alert_threshold",
             "alert_triggered",
+            "ticket_types",
             "created_by",
             "created_at",
             "updated_at",
@@ -44,8 +45,11 @@ class EventSerializer(serializers.ModelSerializer):
         return sanitize_html(value)
 
     def validate_date(self, value):
-        if value <= timezone.now():
-            raise serializers.ValidationError("Event date must be in the future.")
+        # Only validate future date if creating new event or date is being changed
+        instance = self.instance
+        if instance is None or instance.date != value:
+            if value <= timezone.now():
+                raise serializers.ValidationError("Event date must be in the future.")
         return value
 
     def validate_type(self, value):

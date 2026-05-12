@@ -24,12 +24,13 @@ class Event(models.Model):
     name = models.CharField(max_length=255)
     date = models.DateTimeField()
     venue = models.CharField(max_length=255)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    price = models.DecimalField(max_digits=10, decimal_places=2)  # kept for backward compatibility
     type = models.CharField(max_length=20, choices=EVENT_TYPE_CHOICES)
     capacity = models.PositiveIntegerField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
     alert_threshold = models.PositiveIntegerField(default=10)
     alert_triggered = models.BooleanField(default=False)
+    ticket_types = models.JSONField(default=dict, blank=True)  # e.g. {"normal": 50, "silver": 100, "platinum": 200}
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
