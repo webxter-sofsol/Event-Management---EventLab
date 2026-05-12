@@ -2,3 +2,17 @@
 *.env
 /.kiro
 /.vscode
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Node modules
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
