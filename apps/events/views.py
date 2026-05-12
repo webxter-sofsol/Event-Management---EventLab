@@ -1,5 +1,8 @@
+import base64
+import io
 import logging
 
+import qrcode
 from django.conf import settings
 from django.core.mail import send_mail
 from rest_framework import generics, serializers, status
@@ -37,9 +40,15 @@ def _dispatch_cancellation_emails(event):
 
 
 class EventListCreateView(generics.ListCreateAPIView):
-    queryset = Event.objects.all()
     serializer_class = EventSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = Event.objects.all().order_by("date")
+        status_filter = self.request.query_params.get("status")
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        return queryset
 
     def perform_create(self, serializer):
         event = serializer.save(created_by=self.request.user)
@@ -157,3 +166,45 @@ class AlertThresholdView(APIView):
                 "alert_triggered": event.alert_triggered,
             }
         )
+
+
+class EventQRCodeView(APIView):
+    """
+    GET /api/events/{pk}/qr/
+    Returns a base64 PNG QR code that encodes the event's public check-in URL.
+    Staff display this at the entrance; guests scan to self-check-in.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            event = Event.objects.get(pk=pk)
+        except Event.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+        checkin_url = f"{frontend_url}/checkin/event/{event.id}"
+
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(checkin_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        qr_b64 = base64.b64encode(buf.read()).decode()
+
+        return Response({
+            "event_id": str(event.id),
+            "event_name": event.name,
+            "event_date": event.date,
+            "venue": event.venue,
+            "checkin_url": checkin_url,
+            "qr_code": f"data:image/png;base64,{qr_b64}",
+        })

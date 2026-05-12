@@ -244,6 +244,7 @@ function EventCard({ event }: { event: Event }) {
         <Link to={`/events/${event.id}/edit`} className="btn btn-sm btn-ghost">Edit</Link>
         <Link to={`/events/${event.id}/report`} className="btn btn-sm btn-ghost">Report</Link>
         <Link to={`/events/${event.id}/alerts`} className="btn btn-sm btn-ghost">Alerts</Link>
+        <Link to={`/events/${event.id}/qr`} className="btn btn-sm btn-ghost">🔲 QR</Link>
       </div>
     </div>
   );
