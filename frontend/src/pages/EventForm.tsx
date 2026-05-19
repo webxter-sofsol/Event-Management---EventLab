@@ -11,11 +11,13 @@ type EventType = typeof EVENT_TYPES[number];
 interface EventFormData {
   name: string;
   date: string;
+  end_date?: string;
   venue: string;
   price: number;
   type: EventType;
   capacity: number;
   ticket_types: Record<string, number>;
+  is_premium: boolean;
 }
 
 interface AISuggestion {
@@ -32,34 +34,53 @@ export default function EventForm() {
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<EventFormData>({
     defaultValues: {
-      ticket_types: { normal: 0, silver: 0, platinum: 0 }
+      ticket_types: { normal: 0, silver: 0, platinum: 0 },
+      is_premium: false
     }
   });
   const [apiError, setApiError] = useState<string | null>(null);
-  const [originalDate, setOriginalDate] = useState<string | null>(null);
+  const [otherType, setOtherType] = useState('');
   const [aiOpen, setAiOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<AISuggestion | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
 
   const ticketTypes = watch('ticket_types') || { normal: 0, silver: 0, platinum: 0 };
+  const selectedType = watch('type');
+
+  // Convert local datetime-local strings to UTC ISO strings before sending
+  const toUTC = (localStr: string | undefined) => {
+    if (!localStr) return undefined;
+    return new Date(localStr).toISOString();
+  };
 
   useEffect(() => {
     if (!isEditMode) return;
     axiosInstance.get(`/api/events/${id}/`)
       .then((res) => {
         const ev = res.data;
-        const eventDate = ev.date ? ev.date.slice(0, 16) : '';
-        setOriginalDate(eventDate);
+        // Convert UTC ISO strings from API to local datetime-local format for the input
+        const toLocalInput = (iso: string) => {
+          if (!iso) return '';
+          const d = new Date(iso);
+          // Format as YYYY-MM-DDTHH:mm in local time
+          const pad = (n: number) => String(n).padStart(2, '0');
+          return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        };
+        const knownTypes = ['conference', 'workshop', 'social', 'webinar', 'other'];
+        const isKnownType = knownTypes.includes(ev.type);
         reset({ 
           name: ev.name, 
-          date: eventDate, 
+          date: toLocalInput(ev.date),
+          end_date: toLocalInput(ev.end_date),
           venue: ev.venue, 
           price: ev.price, 
-          type: ev.type, 
+          type: isKnownType ? ev.type : 'other',
           capacity: ev.capacity,
-          ticket_types: ev.ticket_types || { normal: ev.price || 0, silver: 0, platinum: 0 }
+          ticket_types: ev.ticket_types || { normal: ev.price || 0, silver: 0, platinum: 0 },
+          is_premium: ev.is_premium || false
         });
+        if (!isKnownType) setOtherType(ev.type);
       })
       .catch(() => setApiError('Failed to load event data.'));
   }, [id, isEditMode, reset]);
@@ -67,8 +88,15 @@ export default function EventForm() {
   async function onSubmit(data: EventFormData) {
     setApiError(null);
     try {
-      if (isEditMode) await axiosInstance.patch(`/api/events/${id}/`, data);
-      else await axiosInstance.post('/api/events/', data);
+      // If type is "other" and a custom label was entered, use that as the type
+      const payload = {
+        ...data,
+        date: toUTC(data.date)!,
+        end_date: toUTC(data.end_date) || null,
+        type: data.type === 'other' && otherType.trim() ? otherType.trim() : data.type,
+      };
+      if (isEditMode) await axiosInstance.patch(`/api/events/${id}/`, payload);
+      else await axiosInstance.post('/api/events/', payload);
       navigate('/events');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string; errors?: unknown } } };
@@ -119,19 +147,29 @@ export default function EventForm() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="date" className="form-label">Date &amp; Time</label>
+                <label htmlFor="date" className="form-label">Start Date &amp; Time</label>
                 <input id="date" type="datetime-local" className="form-input"
-                  {...register('date', { 
-                    required: 'Date is required', 
+                  {...register('date', { required: 'Start date is required' })} />
+                {errors.date && <span className="form-error">{errors.date.message}</span>}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="end_date" className="form-label">End Date &amp; Time (Optional)</label>
+                <input id="end_date" type="datetime-local" className="form-input"
+                  {...register('end_date', {
                     validate: (v) => {
-                      // Only validate future date if creating new event or date was changed
-                      if (!isEditMode || v !== originalDate) {
-                        return new Date(v) > new Date() || 'Date must be in the future';
+                      if (!v) return true; // Optional field
+                      const startDate = watch('date');
+                      if (startDate && new Date(v) <= new Date(startDate)) {
+                        return 'End date must be after start date';
                       }
                       return true;
                     }
                   })} />
-                {errors.date && <span className="form-error">{errors.date.message}</span>}
+                {errors.end_date && <span className="form-error">{errors.end_date.message}</span>}
+                <p style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                  Event will automatically end at this time
+                </p>
               </div>
 
               <div className="form-group">
@@ -144,11 +182,23 @@ export default function EventForm() {
               <div className="form-group">
                 <label htmlFor="type" className="form-label">Event Type</label>
                 <select id="type" className="form-select"
-                  {...register('type', { required: 'Type is required', validate: (v) => (EVENT_TYPES as readonly string[]).includes(v) || 'Invalid type' })}>
+                  {...register('type', { required: 'Type is required' })}>
                   <option value="">Select a type…</option>
                   {EVENT_TYPES.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                 </select>
                 {errors.type && <span className="form-error">{errors.type.message}</span>}
+                {selectedType === 'other' && (
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Specify event type…"
+                    value={otherType}
+                    onChange={(e) => setOtherType(e.target.value)}
+                    required
+                    style={{ marginTop: '0.5rem' }}
+                    aria-label="Custom event type"
+                  />
+                )}
               </div>
 
               <div className="form-group">
@@ -192,6 +242,19 @@ export default function EventForm() {
               <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                 Set price to 0 to disable a ticket type. At least one type should have a price &gt; 0.
               </p>
+            </div>
+
+            {/* Premium Event Checkbox */}
+            <div style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '10px', padding: '1rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', cursor: 'pointer' }}>
+                <input type="checkbox" {...register('is_premium')} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+                <div>
+                  <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--color-text)' }}>⭐ Premium Event</span>
+                  <p style={{ margin: '0.15rem 0 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                    Premium events get special visibility and featured placement
+                  </p>
+                </div>
+              </label>
             </div>
 
             {apiError && <div className="alert alert-error">{apiError}</div>}

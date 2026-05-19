@@ -17,12 +17,12 @@ export default function AuthPage() {
   const navigate = useNavigate();
 
   async function onSubmit(data: LoginFormData) {
-    setErrorMessage(null);
     try {
       const response = await axiosInstance.post('/api/auth/login/', {
         email: data.email,
         password: data.password,
       });
+      setErrorMessage(null);
       login(response.data.access, response.data.refresh);
       navigate('/dashboard');
     } catch {
@@ -53,7 +53,7 @@ export default function AuthPage() {
               className="form-input"
               placeholder="you@example.com"
               autoComplete="email"
-              {...register('email', { required: 'Email is required' })}
+              {...register('email', { required: 'Email is required', onChange: () => setErrorMessage(null) })}
             />
             {errors.email && <span className="form-error">{errors.email.message}</span>}
           </div>
@@ -66,7 +66,7 @@ export default function AuthPage() {
               className="form-input"
               placeholder="••••••••"
               autoComplete="current-password"
-              {...register('password', { required: 'Password is required' })}
+              {...register('password', { required: 'Password is required', onChange: () => setErrorMessage(null) })}
             />
             {errors.password && <span className="form-error">{errors.password.message}</span>}
           </div>

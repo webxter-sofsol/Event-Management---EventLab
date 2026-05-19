@@ -39,6 +39,17 @@ class RegistrationListCreateView(APIView):
                 except Event.DoesNotExist:
                     return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
+                # Auto-expire then check status
+                from apps.events.views import expire_events
+                expire_events()
+                event.refresh_from_db()
+
+                if event.status != "active":
+                    return Response(
+                        {"detail": "This event has ended and is no longer accepting registrations."},
+                        status=status.HTTP_409_CONFLICT,
+                    )
+
                 if event.available_seats <= 0:
                     return Response(
                         {"detail": "Event is at capacity"},
@@ -110,6 +121,17 @@ class BulkRegistrationView(APIView):
                 event = Event.objects.select_for_update().get(pk=event_pk)
             except Event.DoesNotExist:
                 return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            # Auto-expire then check status
+            from apps.events.views import expire_events
+            expire_events()
+            event.refresh_from_db()
+
+            if event.status != "active":
+                return Response(
+                    {"detail": "This event has ended and is no longer accepting registrations."},
+                    status=status.HTTP_409_CONFLICT,
+                )
 
             for email in emails:
                 if event.available_seats <= 0:

@@ -31,19 +31,23 @@ class AnalyticsSummaryView(APIView):
                 status=400,
             )
 
-        since = timezone.now() - delta
+        now = timezone.now()
+        since = now - delta
 
-        events_qs = Event.objects.filter(created_at__gte=since)
+        # Only include events that have already occurred (date is in the past)
+        events_qs = Event.objects.filter(created_at__gte=since, date__lt=now)
         total_events = events_qs.count()
 
-        # Confirmed tickets for events created in the period
+        # Confirmed tickets for past events created in the period
         tickets_qs = Ticket.objects.filter(
-            status="confirmed", event__created_at__gte=since
+            status="confirmed", 
+            event__created_at__gte=since,
+            event__date__lt=now
         ).select_related("event")
 
         total_registrations = tickets_qs.count()
 
-        # Average attendance rate: mean of (confirmed / capacity) across events in period
+        # Average attendance rate: mean of (confirmed / capacity) across past events in period
         event_stats = events_qs.annotate(
             confirmed=Count("ticket_set", filter=Q(ticket_set__status="confirmed"))
         )
@@ -54,7 +58,7 @@ class AnalyticsSummaryView(APIView):
         ]
         avg_attendance_rate = round(sum(rates) / len(rates), 4) if rates else 0.0
 
-        # Revenue: sum of price per confirmed ticket
+        # Revenue: sum of price per confirmed ticket for past events
         revenue = sum(t.event.price for t in tickets_qs)
 
         return Response(

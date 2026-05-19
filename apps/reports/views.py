@@ -1,9 +1,13 @@
 import csv
 
-from django.http import StreamingHttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
+from django.utils.decorators import method_decorator
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apps.events.models import Event
 from apps.tickets.models import Ticket
@@ -51,15 +55,25 @@ class EventReportView(APIView):
         )
 
 
-class EventReportExportView(APIView):
-    """GET /api/events/{id}/report/export/?format=csv — CSV download."""
-
-    permission_classes = [IsAuthenticated]
+@method_decorator(csrf_exempt, name='dispatch')
+class EventReportExportView(View):
+    """GET /api/events/{id}/report/export/ — CSV download. Plain Django view, no DRF."""
 
     def get(self, request, pk):
+        # Manual JWT auth — DRF auth doesn't run on plain Django views
+        auth = JWTAuthentication()
+        try:
+            user_auth_tuple = auth.authenticate(request)
+        except Exception:
+            user_auth_tuple = None
+        if user_auth_tuple is None:
+            return HttpResponse('{"detail":"Authentication credentials were not provided."}',
+                                status=401, content_type="application/json")
+
         event = _get_event_or_404(pk)
         if event is None:
-            return Response({"detail": "Not found."}, status=404)
+            return HttpResponse('{"detail":"Not found."}',
+                                status=404, content_type="application/json")
 
         confirmed_tickets = Ticket.objects.filter(
             event=event, status="confirmed"
@@ -69,13 +83,11 @@ class EventReportExportView(APIView):
         revenue = total_registrations * event.price
 
         def generate_rows():
-            # Summary header rows
             yield ["Event Name", event.name]
             yield ["Total Registrations", total_registrations]
             yield ["Available Seats", event.available_seats]
             yield ["Revenue", float(revenue)]
-            yield []  # blank separator
-            # Guest list header
+            yield []
             yield ["Guest Name", "Guest Email", "Registered At"]
             for ticket in confirmed_tickets:
                 yield [
@@ -85,7 +97,6 @@ class EventReportExportView(APIView):
                 ]
 
         class EchoBuffer:
-            """Minimal write-only buffer for StreamingHttpResponse."""
             def write(self, value):
                 return value
 

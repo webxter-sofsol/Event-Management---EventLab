@@ -51,7 +51,11 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Never intercept the login endpoint — let auth errors bubble up to the form
+    const isAuthEndpoint = originalRequest.url?.includes('/api/auth/login/') ||
+                           originalRequest.url?.includes('/api/auth/token/');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       const refreshToken = localStorage.getItem('refresh_token');
 
       if (!refreshToken) {

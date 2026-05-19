@@ -17,6 +17,8 @@ interface Event {
   available_seats: number;
   status: string;
   alert_triggered: boolean;
+  price: number;
+  ticket_types: Record<string, number>;
 }
 
 interface AIBriefing {
@@ -174,6 +176,20 @@ function EventCard({ event }: { event: Event }) {
     { name: 'Available', value: event.available_seats ?? 0 },
   ];
 
+  function getPriceDisplay(): string {
+    if (!event.ticket_types || Object.keys(event.ticket_types).length === 0) {
+      return `$${event.price}`;
+    }
+    
+    const prices = Object.values(event.ticket_types).filter(p => p > 0);
+    if (prices.length === 0) return `$${event.price}`;
+    if (prices.length === 1) return `$${prices[0]}`;
+    
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    return `$${min}-$${max}`;
+  }
+
   return (
     <div style={{
       ...s.card,
@@ -198,6 +214,8 @@ function EventCard({ event }: { event: Event }) {
               <IconMapPin size={11} color="#94a3b8" style={{ marginRight: '3px', verticalAlign: 'middle' }} />
               {event.venue}</>
             )}
+            <span style={{ margin: '0 4px', color: '#cbd5e1' }}>·</span>
+            <span style={{ fontWeight: 600, color: '#16a34a' }}>{getPriceDisplay()}</span>
           </p>
         </div>
       </div>

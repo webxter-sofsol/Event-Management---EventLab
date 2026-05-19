@@ -16,6 +16,7 @@ interface Event {
   status: string;
   available_seats: number;
   alert_triggered: boolean;
+  ticket_types: Record<string, number>;
 }
 
 interface Filters {
@@ -69,6 +70,20 @@ export default function EventList() {
 
   const totalPages = Math.ceil(events.length / PAGE_SIZE);
   const paginatedEvents = events.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  function getPriceDisplay(event: Event): string {
+    if (!event.ticket_types || Object.keys(event.ticket_types).length === 0) {
+      return `$${event.price}`;
+    }
+    
+    const prices = Object.values(event.ticket_types).filter(p => p > 0);
+    if (prices.length === 0) return `$${event.price}`;
+    if (prices.length === 1) return `$${prices[0]}`;
+    
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    return `$${min} - $${max}`;
+  }
 
   return (
     <div className="page">
@@ -125,6 +140,7 @@ export default function EventList() {
                   <th>Date</th>
                   <th>Venue</th>
                   <th>Type</th>
+                  <th>Price</th>
                   <th>Status</th>
                   <th>Capacity</th>
                   <th>Available</th>
@@ -143,9 +159,12 @@ export default function EventList() {
                     </td>
                     <td style={{ color: 'var(--color-text-secondary)' }}>{event.venue}</td>
                     <td><span className="badge badge-purple">{TYPE_LABELS[event.type] ?? event.type}</span></td>
+                    <td style={{ fontWeight: 600, color: 'var(--color-success)', whiteSpace: 'nowrap' }}>
+                      {getPriceDisplay(event)}
+                    </td>
                     <td>
                       <span className={event.status === 'cancelled' ? 'badge badge-red' : 'badge badge-green'}>
-                        {event.status}
+                       {event.status === 'cancelled' ? 'Ended' : event.status}
                       </span>
                     </td>
                     <td>{event.capacity}</td>

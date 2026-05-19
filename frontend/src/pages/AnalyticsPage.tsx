@@ -51,7 +51,7 @@ export default function AnalyticsPage() {
         <div>
           <h1 className="page-title">Analytics</h1>
           <p style={{ margin: '0.25rem 0 0', color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
-            Performance overview across your events
+            Performance overview for past events
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.375rem', background: '#f1f5f9', borderRadius: '8px', padding: '0.25rem' }}>
@@ -74,9 +74,9 @@ export default function AnalyticsPage() {
       {summary && !loading && (
         <>
           <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: '1.75rem' }}>
-            <StatCard label="Total Events" value={String(summary.total_events)} accent="#4f46e5" />
+            <StatCard label="Past Events" value={String(summary.total_events)} accent="#4f46e5" />
             <StatCard label="Total Registrations" value={String(summary.total_registrations)} accent="#0891b2" />
-            <StatCard label="Avg Attendance Rate" value={`${summary.avg_attendance_rate.toFixed(1)}%`} accent="#16a34a" />
+            <StatCard label="Avg Attendance Rate" value={`${(summary.avg_attendance_rate * 100).toFixed(1)}%`} accent="#16a34a" />
             <StatCard label="Revenue" value={fmt(parseFloat(String(summary.revenue)))} accent="#d97706" />
           </div>
 

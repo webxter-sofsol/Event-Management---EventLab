@@ -5,6 +5,7 @@ import logging
 import qrcode
 from django.conf import settings
 from django.core.mail import send_mail
+from django.utils import timezone
 from rest_framework import generics, serializers, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -16,6 +17,16 @@ from .models import Event, log_action
 from .serializers import EventSerializer
 
 logger = logging.getLogger(__name__)
+
+
+def expire_events():
+    """Mark any active events whose end_date has passed as cancelled. Call before any read/write."""
+    now = timezone.now()
+    Event.objects.filter(
+        status='active',
+        end_date__isnull=False,
+        end_date__lte=now,
+    ).update(status='cancelled')
 
 
 def _dispatch_cancellation_emails(event):
@@ -44,6 +55,7 @@ class EventListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        expire_events()
         queryset = Event.objects.all().order_by("date")
         status_filter = self.request.query_params.get("status")
         if status_filter:

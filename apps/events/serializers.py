@@ -1,4 +1,3 @@
-from django.utils import timezone
 from rest_framework import serializers
 
 from apps.utils import sanitize_html
@@ -20,6 +19,7 @@ class EventSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "date",
+            "end_date",
             "venue",
             "price",
             "type",
@@ -28,6 +28,7 @@ class EventSerializer(serializers.ModelSerializer):
             "alert_threshold",
             "alert_triggered",
             "ticket_types",
+            "is_premium",
             "created_by",
             "created_at",
             "updated_at",
@@ -44,22 +45,26 @@ class EventSerializer(serializers.ModelSerializer):
     def validate_venue(self, value):
         return sanitize_html(value)
 
-    def validate_date(self, value):
-        # Only validate future date if creating new event or date is being changed
-        instance = self.instance
-        if instance is None or instance.date != value:
-            if value <= timezone.now():
-                raise serializers.ValidationError("Event date must be in the future.")
+    def validate_end_date(self, value):
+        # Just return the value — cross-field validation (end > start) is done in validate()
         return value
 
     def validate_type(self, value):
-        if value not in VALID_EVENT_TYPES:
-            raise serializers.ValidationError(
-                f"Event type must be one of: {', '.join(VALID_EVENT_TYPES)}."
-            )
-        return value
+        # Allow the fixed types plus any custom string for "other" category
+        if value in VALID_EVENT_TYPES:
+            return value
+        # Custom type — sanitize and allow it
+        return sanitize_html(value)
 
     def validate(self, attrs):
+        # Validate end_date is after start date
+        start = attrs.get('date') or (self.instance.date if self.instance else None)
+        end = attrs.get('end_date') or (self.instance.end_date if self.instance else None)
+        if start and end and end <= start:
+            raise serializers.ValidationError(
+                {"end_date": "End date must be after start date."}
+            )
+
         # On update, validate capacity >= confirmed registrations
         instance = self.instance
         if instance is not None and "capacity" in attrs:

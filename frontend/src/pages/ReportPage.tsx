@@ -37,7 +37,7 @@ export default function ReportPage() {
   async function handleExportCSV() {
     setExporting(true);
     try {
-      const res = await axiosInstance.get(`/api/events/${id}/report/export/`, { params: { format: 'csv' }, responseType: 'blob' });
+      const res = await axiosInstance.get(`/api/events/${id}/report/export/`, { responseType: 'blob' });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
       a.href = url; a.download = `event-${id}-report.csv`; a.click();

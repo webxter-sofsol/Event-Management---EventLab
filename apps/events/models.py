@@ -23,14 +23,16 @@ class Event(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     date = models.DateTimeField()
+    end_date = models.DateTimeField(null=True, blank=True)  # When the event ends
     venue = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=10, decimal_places=2)  # kept for backward compatibility
-    type = models.CharField(max_length=20, choices=EVENT_TYPE_CHOICES)
+    type = models.CharField(max_length=50)  # validated in serializer; allows custom types
     capacity = models.PositiveIntegerField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
     alert_threshold = models.PositiveIntegerField(default=10)
     alert_triggered = models.BooleanField(default=False)
     ticket_types = models.JSONField(default=dict, blank=True)  # e.g. {"normal": 50, "silver": 100, "platinum": 200}
+    is_premium = models.BooleanField(default=False)  # Premium events have special features/visibility
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -44,17 +46,20 @@ class Event(models.Model):
         app_label = "events"
 
     def clean(self):
-        if self.date and self.date <= timezone.now():
-            raise ValidationError({"date": "Event date must be in the future."})
-
-        valid_types = [choice[0] for choice in self.EVENT_TYPE_CHOICES]
-        if self.type and self.type not in valid_types:
-            raise ValidationError({"type": f"Event type must be one of: {', '.join(valid_types)}."})
+        if self.end_date and self.date and self.end_date <= self.date:
+            raise ValidationError({"end_date": "End date must be after start date."})
 
     @property
     def available_seats(self):
         confirmed = self.ticket_set.filter(status="confirmed").count()
         return self.capacity - confirmed
+
+    @property
+    def is_ended(self):
+        """Check if event has ended based on end_date"""
+        if self.end_date:
+            return timezone.now() > self.end_date
+        return False
 
     def __str__(self):
         return self.name
